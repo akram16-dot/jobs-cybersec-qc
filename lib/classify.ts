@@ -86,22 +86,85 @@ export function isQuebec(location: string | null | undefined): boolean {
   );
 }
 
-const CYBER_KEYWORDS = [
+// Mots-clés "forts" : si présents, c'est sûrement de la cybersec
+const STRONG_CYBER = [
   "cyber",
+  "cybersecurity",
+  "cybersecurite",
   "securite informatique",
-  "security",
   "infosec",
-  "soc",
+  "information security",
+  "soc analyst",
+  "soc analyste",
+  "security operations",
   "pentest",
+  "penetration test",
+  "ethical hack",
   "siem",
   "iam",
+  "pam",
   "grc",
   "ciso",
   "rssi",
   "devsecops",
+  "threat intel",
+  "vulnerability",
+  "incident response",
+  "red team",
+  "blue team",
+  "appsec",
+  "application security",
+  "cloud security",
+  "network security",
+  "zero trust",
+];
+
+// Mots-clés "faibles" : "security" seul est ambigu (peut être agent de
+// sécurité, security guard, physical security, etc.). On exige qu'il soit
+// combiné à un mot lié à l'IT pour le retenir.
+const IT_CONTEXT = [
+  "informat",
+  "data",
+  "cloud",
+  "devops",
+  "developer",
+  "developpeur",
+  "engineer",
+  "ingenieur",
+  "analyst",
+  "analyste",
+  "architect",
+  "network",
+  "reseau",
+  "system",
+  "systeme",
+  "software",
+  "logiciel",
+  "web",
+  "api",
+  "linux",
+  "windows",
+];
+
+// Mots à exclure (false positives connus)
+const EXCLUDE = [
+  "security guard",
+  "agent de securite",
+  "gardien",
+  "patrouille",
+  "military security",
+  "physical security",
+  "loss prevention",
+  "agent de prevention",
 ];
 
 export function isCybersec(title: string, description = ""): boolean {
   const t = norm(`${title} ${description}`);
-  return CYBER_KEYWORDS.some((k) => t.includes(k));
+  if (EXCLUDE.some((k) => t.includes(k))) return false;
+  if (STRONG_CYBER.some((k) => t.includes(k))) return true;
+  // "security" seul → on accepte uniquement si contexte IT clair
+  if (t.includes("security") || t.includes("securite")) {
+    return IT_CONTEXT.some((k) => t.includes(k));
+  }
+  return false;
 }

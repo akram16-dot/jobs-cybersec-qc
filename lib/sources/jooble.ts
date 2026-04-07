@@ -89,7 +89,11 @@ export async function fetchJooble(): Promise<NormalizedJob[]> {
             source_id: sid,
             title: j.title,
             company: j.company || null,
-            city: normalizeCity(j.location) || searchedCity,
+            // Si Jooble retourne juste "Canada" / pays, on garde la ville recherchée
+            city:
+              /^(canada|qc|quebec|québec)$/i.test((j.location || "").trim())
+                ? searchedCity
+                : normalizeCity(j.location) || searchedCity,
             region: "QC",
             remote: detectRemote(j.title, j.snippet, j.location),
             experience: detectExperience(j.title, j.snippet),
