@@ -65,13 +65,23 @@ export async function fetchJooble(): Promise<NormalizedJob[]> {
           continue;
         }
         const data = (await res.json()) as JoobleResponse;
+        // La ville de la recherche (ex: "Montreal" depuis "Montreal, QC, Canada")
+        const searchedCity = loc.split(",")[0].trim();
         for (const j of data.jobs || []) {
           // Jooble n'a pas toujours d'id stable -> on hash le lien
           const sid = String(j.id ?? j.link);
           if (seen.has(sid)) continue;
           seen.add(sid);
 
-          if (!isQuebec(j.location)) continue;
+          // Jooble retourne souvent juste "Canada" comme location.
+          // On fait confiance à la location de recherche : on garde la job
+          // sauf si elle est explicitement dans une autre province/pays.
+          const jobLoc = (j.location || "").toLowerCase();
+          const obviousNonQc =
+            /\b(ontario|on|alberta|ab|bc|british columbia|manitoba|mb|saskatchewan|sk|nova scotia|ns|new brunswick|nb|usa|united states|france|maroc)\b/.test(
+              jobLoc
+            );
+          if (obviousNonQc && !isQuebec(j.location)) continue;
           if (!isCybersec(j.title, j.snippet)) continue;
 
           all.push({
@@ -79,7 +89,7 @@ export async function fetchJooble(): Promise<NormalizedJob[]> {
             source_id: sid,
             title: j.title,
             company: j.company || null,
-            city: normalizeCity(j.location),
+            city: normalizeCity(j.location) || searchedCity,
             region: "QC",
             remote: detectRemote(j.title, j.snippet, j.location),
             experience: detectExperience(j.title, j.snippet),
