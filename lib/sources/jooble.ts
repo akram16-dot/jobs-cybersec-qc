@@ -65,8 +65,9 @@ export async function fetchJooble(): Promise<NormalizedJob[]> {
           continue;
         }
         const data = (await res.json()) as JoobleResponse;
-        // La ville de la recherche (ex: "Montreal" depuis "Montreal, QC, Canada")
-        const searchedCity = loc.split(",")[0].trim();
+        // La ville de la recherche, normalisée (ex: "Montreal" -> "Montréal")
+        const rawSearchedCity = loc.split(",")[0].trim();
+        const searchedCity = normalizeCity(rawSearchedCity) || rawSearchedCity;
         for (const j of data.jobs || []) {
           // Jooble n'a pas toujours d'id stable -> on hash le lien
           const sid = String(j.id ?? j.link);
