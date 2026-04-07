@@ -33,7 +33,14 @@ const QUERIES = [
   "pentest",
 ];
 
-const LOCATIONS = ["Québec", "Montréal"];
+// IMPORTANT : Jooble exige le format complet "Ville, Province, Pays" sinon
+// il matche n'importe quelle ville homonyme dans le monde (ex. Montreal, MO).
+const LOCATIONS = [
+  "Montreal, QC, Canada",
+  "Quebec City, QC, Canada",
+  "Laval, QC, Canada",
+  "Gatineau, QC, Canada",
+];
 
 export async function fetchJooble(): Promise<NormalizedJob[]> {
   const key = process.env.JOOBLE_API_KEY;
