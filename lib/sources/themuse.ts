@@ -1,6 +1,6 @@
 // The Muse API (public, pas de clé)
 // https://www.themuse.com/developers/api/v2
-// Endpoint: https://www.themuse.com/api/public/jobs?page=0&category=...
+// Endpoint: https://www.themuse.com/api/public/jobs?page=0
 
 import {
   detectCategory,
@@ -25,17 +25,16 @@ interface MuseJob {
 }
 interface MuseResponse {
   results: MuseJob[];
+  page: number;
+  page_count: number;
 }
 
 async function fetchMusePage(
-  level: string | undefined,
   location: string | undefined,
   page = 0
 ): Promise<MuseJob[]> {
   const url = new URL("https://www.themuse.com/api/public/jobs");
   url.searchParams.set("page", String(page));
-  url.searchParams.set("category", "Data Science");
-  if (level) url.searchParams.append("level", level);
   if (location) url.searchParams.append("location", location);
   try {
     const res = await fetch(url.toString());
@@ -47,15 +46,19 @@ async function fetchMusePage(
   }
 }
 
-// The Muse a une catégorie "Data Science" mais pas "Cybersecurity".
-// On filtre strictement par mot-clé dans le titre.
+// The Muse n'a pas de catégorie "Cybersecurity" ni de vraie recherche plein-texte.
+// On tire plusieurs pages puis on filtre par titre.
 async function fetchAllMuse(location?: string): Promise<MuseJob[]> {
   const out: MuseJob[] = [];
-  // On tape quelques pages, chaque appel ~ 20 jobs
-  for (let p = 0; p < 3; p++) {
-    const jobs = await fetchMusePage(undefined, location, p);
-    out.push(...jobs);
-    if (jobs.length < 20) break;
+  const seen = new Set<number>();
+  for (let p = 0; p < 5; p++) {
+    const jobs = await fetchMusePage(location, p);
+    if (jobs.length === 0) break;
+    for (const j of jobs) {
+      if (seen.has(j.id)) continue;
+      seen.add(j.id);
+      out.push(j);
+    }
   }
   return out;
 }

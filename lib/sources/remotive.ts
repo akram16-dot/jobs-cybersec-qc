@@ -1,5 +1,8 @@
 // Remotive API (public, pas de clé)
 // https://remotive.com/api/remote-jobs
+// NOTE : leur paramètre ?search= fait un match exact étrange. On récupère
+// plutôt la catégorie "devops-sysadmin" et "software-dev" qui contiennent
+// la majorité des offres cybersec, puis on filtre côté client.
 
 import {
   detectCategory,
@@ -26,10 +29,11 @@ interface RemotiveResponse {
   jobs: RemotiveJob[];
 }
 
-async function fetchRemotiveAll(search: string): Promise<RemotiveJob[]> {
+async function fetchRemotive(
+  params: Record<string, string> = {}
+): Promise<RemotiveJob[]> {
   const url = new URL("https://remotive.com/api/remote-jobs");
-  url.searchParams.set("search", search);
-  url.searchParams.set("limit", "200");
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   try {
     const res = await fetch(url.toString());
     if (!res.ok) return [];
@@ -38,6 +42,23 @@ async function fetchRemotiveAll(search: string): Promise<RemotiveJob[]> {
   } catch {
     return [];
   }
+}
+
+// On récupère toutes les offres "devops-sysadmin" puisque Remotive n'a
+// pas de catégorie "Cybersecurity" dédiée. Les postes cybersec y figurent.
+async function fetchAllPotentialCybersec(): Promise<RemotiveJob[]> {
+  const out: RemotiveJob[] = [];
+  const seen = new Set<number>();
+  // Catégories qui contiennent de la cybersec
+  for (const cat of ["devops-sysadmin", "software-dev", "all-others"]) {
+    const jobs = await fetchRemotive({ category: cat });
+    for (const j of jobs) {
+      if (seen.has(j.id)) continue;
+      seen.add(j.id);
+      out.push(j);
+    }
+  }
+  return out;
 }
 
 function build(j: RemotiveJob, feed: Feed): NormalizedJob {
@@ -64,18 +85,16 @@ function build(j: RemotiveJob, feed: Feed): NormalizedJob {
 }
 
 export async function fetchRemotiveRemoteNA(): Promise<NormalizedJob[]> {
-  const jobs = await fetchRemotiveAll("cybersecurity");
+  const jobs = await fetchAllPotentialCybersec();
   const out: NormalizedJob[] = [];
   for (const j of jobs) {
     if (!isCybersecStrict(j.title)) continue;
     const loc = (j.candidate_required_location || "").toLowerCase();
-    // Exclure UK/Europe-only pour remote_na (on les reverra en freelance)
+    // Exclure Europe-only (on préfère worldwide, USA, Canada pour ce fil)
     if (
+      loc &&
       loc.includes("europe") &&
-      !loc.includes("worldwide") &&
-      !loc.includes("anywhere") &&
-      !loc.includes("usa") &&
-      !loc.includes("canada")
+      !/worldwide|anywhere|usa|united states|canada|north america/.test(loc)
     )
       continue;
     out.push(build(j, "remote_na"));
@@ -84,7 +103,7 @@ export async function fetchRemotiveRemoteNA(): Promise<NormalizedJob[]> {
 }
 
 export async function fetchRemotiveFreelance(): Promise<NormalizedJob[]> {
-  const jobs = await fetchRemotiveAll("cybersecurity");
+  const jobs = await fetchAllPotentialCybersec();
   const out: NormalizedJob[] = [];
   for (const j of jobs) {
     if (!isCybersecStrict(j.title)) continue;

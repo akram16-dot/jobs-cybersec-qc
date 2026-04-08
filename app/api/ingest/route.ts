@@ -8,10 +8,6 @@ import {
   fetchAdzunaQc,
   fetchAdzunaRemoteNA,
 } from "@/lib/sources/adzuna";
-import {
-  fetchCyberSecJobsFreelance,
-  fetchCyberSecJobsRemoteNA,
-} from "@/lib/sources/cybersecjobs";
 import { fetchEmploisQcQc } from "@/lib/sources/emploisquebec";
 import {
   fetchFindworkFreelance,
@@ -19,11 +15,6 @@ import {
   fetchFindworkRemoteNA,
 } from "@/lib/sources/findwork";
 import { fetchFreelancerFreelance } from "@/lib/sources/freelancer";
-import {
-  fetchInfoSecJobsFreelance,
-  fetchInfoSecJobsQc,
-  fetchInfoSecJobsRemoteNA,
-} from "@/lib/sources/infosecjobs";
 import {
   fetchJoobleFreelance,
   fetchJoobleQc,
@@ -63,8 +54,6 @@ const SOURCE_PRIORITY: Record<string, number> = {
   themuse: 7,
   remotive: 6,
   remoteok: 6,
-  infosecjobs: 5,
-  cybersecjobs: 5,
   emploisqc: 7,
   wwr: 4,
   freelancer: 3, // projets, pas des emplois
@@ -98,13 +87,6 @@ export async function GET(req: Request) {
     { label: "remoteok_freelance", run: fetchRemoteOkFreelance },
     // We Work Remotely
     { label: "wwr_remote_na", run: fetchWwrRemoteNA },
-    // CyberSecJobs
-    { label: "cybersecjobs_remote_na", run: fetchCyberSecJobsRemoteNA },
-    { label: "cybersecjobs_freelance", run: fetchCyberSecJobsFreelance },
-    // InfoSec-Jobs
-    { label: "infosecjobs_qc", run: fetchInfoSecJobsQc },
-    { label: "infosecjobs_remote_na", run: fetchInfoSecJobsRemoteNA },
-    { label: "infosecjobs_freelance", run: fetchInfoSecJobsFreelance },
     // Emplois Québec
     { label: "emploisqc_qc", run: fetchEmploisQcQc },
     // Reed UK
