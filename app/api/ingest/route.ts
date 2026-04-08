@@ -1,11 +1,18 @@
-// Route d'ingestion : récupère les offres depuis toutes les sources et les
-// enregistre dans Supabase. Protégée par INGEST_SECRET (header Authorization
-// Bearer ...). Vercel Cron passe automatiquement le bon header si on configure
-// le secret dans les variables d'env.
+// Route d'ingestion : récupère les offres depuis toutes les sources et tous
+// les fils (qc / remote_na / freelance) et les upsert dans Supabase.
+// Protégée par INGEST_SECRET (header Authorization Bearer).
 
 import { NextResponse } from "next/server";
-import { fetchAdzuna } from "@/lib/sources/adzuna";
-import { fetchJooble } from "@/lib/sources/jooble";
+import {
+  fetchAdzunaFreelance,
+  fetchAdzunaQc,
+  fetchAdzunaRemoteNA,
+} from "@/lib/sources/adzuna";
+import {
+  fetchJoobleFreelance,
+  fetchJoobleQc,
+  fetchJoobleRemoteNA,
+} from "@/lib/sources/jooble";
 import { supabaseAdmin } from "@/lib/supabase";
 import type { NormalizedJob } from "@/lib/types";
 
@@ -26,15 +33,37 @@ export async function GET(req: Request) {
   }
 
   const started = Date.now();
-  const [adz, joo] = await Promise.allSettled([fetchAdzuna(), fetchJooble()]);
+  const results = await Promise.allSettled([
+    fetchAdzunaQc(),
+    fetchAdzunaRemoteNA(),
+    fetchAdzunaFreelance(),
+    fetchJoobleQc(),
+    fetchJoobleRemoteNA(),
+    fetchJoobleFreelance(),
+  ]);
+  const labels = [
+    "adzuna_qc",
+    "adzuna_remote_na",
+    "adzuna_freelance",
+    "jooble_qc",
+    "jooble_remote_na",
+    "jooble_freelance",
+  ];
 
   const jobs: NormalizedJob[] = [];
-  if (adz.status === "fulfilled") jobs.push(...adz.value);
-  if (joo.status === "fulfilled") jobs.push(...joo.value);
+  const counts: Record<string, number | string> = {};
+  results.forEach((r, i) => {
+    if (r.status === "fulfilled") {
+      jobs.push(...r.value);
+      counts[labels[i]] = r.value.length;
+    } else {
+      counts[labels[i]] = "error";
+    }
+  });
 
-  // Déduplication finale par (source, source_id)
+  // Déduplication par (source, source_id, feed)
   const map = new Map<string, NormalizedJob>();
-  for (const j of jobs) map.set(`${j.source}:${j.source_id}`, j);
+  for (const j of jobs) map.set(`${j.source}:${j.source_id}:${j.feed}`, j);
   const unique = Array.from(map.values());
 
   let inserted = 0;
@@ -42,7 +71,10 @@ export async function GET(req: Request) {
     const supabase = supabaseAdmin();
     const { error, count } = await supabase
       .from("jobs")
-      .upsert(unique, { onConflict: "source,source_id", count: "exact" });
+      .upsert(unique, {
+        onConflict: "source,source_id,feed",
+        count: "exact",
+      });
     if (error) {
       console.error("[ingest] upsert error", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -55,9 +87,6 @@ export async function GET(req: Request) {
     duration_ms: Date.now() - started,
     fetched: unique.length,
     upserted: inserted,
-    sources: {
-      adzuna: adz.status === "fulfilled" ? adz.value.length : `error`,
-      jooble: joo.status === "fulfilled" ? joo.value.length : `error`,
-    },
+    sources: counts,
   });
 }

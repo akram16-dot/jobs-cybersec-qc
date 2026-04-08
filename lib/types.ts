@@ -8,9 +8,12 @@ export type Category =
   | "gestion"
   | "autre";
 
+export type Feed = "qc" | "remote_na" | "freelance";
+
 export interface NormalizedJob {
   source: string;
   source_id: string;
+  feed: Feed;
   title: string;
   company: string | null;
   city: string | null;

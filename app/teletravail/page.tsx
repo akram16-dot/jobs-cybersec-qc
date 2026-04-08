@@ -5,10 +5,8 @@ import { loadJobsByFeed } from "@/lib/loadJobs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export default async function Home() {
-  const jobs = await loadJobsByFeed("qc");
-  const lastUpdate =
-    jobs[0]?.fetched_at ?? jobs[0]?.posted_at ?? new Date().toISOString();
+export default async function TeletravailPage() {
+  const jobs = await loadJobsByFeed("remote_na");
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-10 sm:py-16">
@@ -18,20 +16,21 @@ export default async function Home() {
           Mis à jour quotidiennement
         </div>
         <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">
-          Jobs <span className="text-emerald-400">Cybersécurité</span> Québec
+          <span className="text-emerald-400">Télétravail</span> Canada / USA
         </h1>
         <p className="mt-3 text-white/60 max-w-2xl">
-          Toutes les offres d'emploi en cybersécurité dans la province du
-          Québec, agrégées depuis plusieurs sources publiques et rafraîchies
-          automatiquement chaque jour.
-        </p>
-        <p className="mt-2 text-xs text-white/40">
-          Dernière donnée : {new Date(lastUpdate).toLocaleString("fr-CA")}
+          Postes en cybersécurité 100 % télétravail, dans les autres provinces
+          canadiennes et aux États-Unis (hors Québec — pour le QC, voir l'autre
+          onglet).
         </p>
       </header>
 
-      <NavHeader current="qc" />
-      <JobsBoard initialJobs={jobs} />
+      <NavHeader current="teletravail" />
+      <JobsBoard
+        initialJobs={jobs}
+        hideCityFilter
+        hideRemoteToggle
+      />
 
       <footer className="mt-16 text-center text-xs text-white/30">
         Données : Adzuna · Jooble — Agrégation automatique, vérifiez toujours
