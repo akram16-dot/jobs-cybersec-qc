@@ -168,3 +168,12 @@ export function isCybersec(title: string, description = ""): boolean {
   }
   return false;
 }
+
+// Version STRICTE : exige un mot-clé cybersec fort DANS LE TITRE.
+// Utile pour les sources "tech generalist" (Remote OK, Remotive, WWR, Muse)
+// qui renvoient beaucoup de DevOps/SRE qui ne sont pas vraiment cybersec.
+export function isCybersecStrict(title: string): boolean {
+  const t = norm(title);
+  if (EXCLUDE.some((k) => t.includes(k))) return false;
+  return STRONG_CYBER.some((k) => t.includes(k));
+}

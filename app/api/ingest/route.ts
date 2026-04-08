@@ -9,10 +9,37 @@ import {
   fetchAdzunaRemoteNA,
 } from "@/lib/sources/adzuna";
 import {
+  fetchCyberSecJobsFreelance,
+  fetchCyberSecJobsRemoteNA,
+} from "@/lib/sources/cybersecjobs";
+import { fetchEmploisQcQc } from "@/lib/sources/emploisquebec";
+import {
+  fetchFindworkFreelance,
+  fetchFindworkQc,
+  fetchFindworkRemoteNA,
+} from "@/lib/sources/findwork";
+import { fetchFreelancerFreelance } from "@/lib/sources/freelancer";
+import {
+  fetchInfoSecJobsFreelance,
+  fetchInfoSecJobsQc,
+  fetchInfoSecJobsRemoteNA,
+} from "@/lib/sources/infosecjobs";
+import {
   fetchJoobleFreelance,
   fetchJoobleQc,
   fetchJoobleRemoteNA,
 } from "@/lib/sources/jooble";
+import { fetchMuseQc, fetchMuseRemoteNA } from "@/lib/sources/themuse";
+import { fetchReedFreelance } from "@/lib/sources/reed";
+import {
+  fetchRemoteOkFreelance,
+  fetchRemoteOkRemoteNA,
+} from "@/lib/sources/remoteok";
+import {
+  fetchRemotiveFreelance,
+  fetchRemotiveRemoteNA,
+} from "@/lib/sources/remotive";
+import { fetchWwrRemoteNA } from "@/lib/sources/weworkremotely";
 import { supabaseAdmin } from "@/lib/supabase";
 import type { NormalizedJob } from "@/lib/types";
 
@@ -27,37 +54,79 @@ function authorized(req: Request): boolean {
   return header === `Bearer ${secret}`;
 }
 
+// Priorités pour la déduplication inter-sources :
+// plus le nombre est haut, plus la source est préférée
+const SOURCE_PRIORITY: Record<string, number> = {
+  adzuna: 10, // API propre, bonne description
+  reed: 9,
+  findwork: 8,
+  themuse: 7,
+  remotive: 6,
+  remoteok: 6,
+  infosecjobs: 5,
+  cybersecjobs: 5,
+  emploisqc: 7,
+  wwr: 4,
+  freelancer: 3, // projets, pas des emplois
+  jooble: 2, // souvent agrégat des autres
+};
+
 export async function GET(req: Request) {
   if (!authorized(req)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
   const started = Date.now();
-  const results = await Promise.allSettled([
-    fetchAdzunaQc(),
-    fetchAdzunaRemoteNA(),
-    fetchAdzunaFreelance(),
-    fetchJoobleQc(),
-    fetchJoobleRemoteNA(),
-    fetchJoobleFreelance(),
-  ]);
-  const labels = [
-    "adzuna_qc",
-    "adzuna_remote_na",
-    "adzuna_freelance",
-    "jooble_qc",
-    "jooble_remote_na",
-    "jooble_freelance",
+
+  const tasks: { label: string; run: () => Promise<NormalizedJob[]> }[] = [
+    // Adzuna
+    { label: "adzuna_qc", run: fetchAdzunaQc },
+    { label: "adzuna_remote_na", run: fetchAdzunaRemoteNA },
+    { label: "adzuna_freelance", run: fetchAdzunaFreelance },
+    // Jooble
+    { label: "jooble_qc", run: fetchJoobleQc },
+    { label: "jooble_remote_na", run: fetchJoobleRemoteNA },
+    { label: "jooble_freelance", run: fetchJoobleFreelance },
+    // The Muse
+    { label: "muse_qc", run: fetchMuseQc },
+    { label: "muse_remote_na", run: fetchMuseRemoteNA },
+    // Remotive
+    { label: "remotive_remote_na", run: fetchRemotiveRemoteNA },
+    { label: "remotive_freelance", run: fetchRemotiveFreelance },
+    // Remote OK
+    { label: "remoteok_remote_na", run: fetchRemoteOkRemoteNA },
+    { label: "remoteok_freelance", run: fetchRemoteOkFreelance },
+    // We Work Remotely
+    { label: "wwr_remote_na", run: fetchWwrRemoteNA },
+    // CyberSecJobs
+    { label: "cybersecjobs_remote_na", run: fetchCyberSecJobsRemoteNA },
+    { label: "cybersecjobs_freelance", run: fetchCyberSecJobsFreelance },
+    // InfoSec-Jobs
+    { label: "infosecjobs_qc", run: fetchInfoSecJobsQc },
+    { label: "infosecjobs_remote_na", run: fetchInfoSecJobsRemoteNA },
+    { label: "infosecjobs_freelance", run: fetchInfoSecJobsFreelance },
+    // Emplois Québec
+    { label: "emploisqc_qc", run: fetchEmploisQcQc },
+    // Reed UK
+    { label: "reed_freelance", run: fetchReedFreelance },
+    // Findwork
+    { label: "findwork_qc", run: fetchFindworkQc },
+    { label: "findwork_remote_na", run: fetchFindworkRemoteNA },
+    { label: "findwork_freelance", run: fetchFindworkFreelance },
+    // Freelancer.com
+    { label: "freelancer_freelance", run: fetchFreelancerFreelance },
   ];
+
+  const results = await Promise.allSettled(tasks.map((t) => t.run()));
 
   const jobs: NormalizedJob[] = [];
   const counts: Record<string, number | string> = {};
   results.forEach((r, i) => {
     if (r.status === "fulfilled") {
       jobs.push(...r.value);
-      counts[labels[i]] = r.value.length;
+      counts[tasks[i].label] = r.value.length;
     } else {
-      counts[labels[i]] = "error";
+      counts[tasks[i].label] = "error";
     }
   });
 
@@ -66,9 +135,6 @@ export async function GET(req: Request) {
   for (const j of jobs) intraMap.set(`${j.source}:${j.source_id}:${j.feed}`, j);
 
   // 2) Déduplication inter-sources par clé de contenu
-  //    (même titre + même entreprise + même feed = même offre)
-  //    On priorise Adzuna (généralement plus propre que Jooble).
-  const SOURCE_PRIORITY: Record<string, number> = { adzuna: 2, jooble: 1 };
   const normKey = (s: string) =>
     s
       .toLowerCase()
@@ -91,23 +157,24 @@ export async function GET(req: Request) {
     }
   }
   const unique = Array.from(contentMap.values());
-  const dedupedCrossSource =
-    intraMap.size - unique.length;
+  const dedupedCrossSource = intraMap.size - unique.length;
 
   let inserted = 0;
   if (unique.length > 0) {
     const supabase = supabaseAdmin();
-    const { error, count } = await supabase
-      .from("jobs")
-      .upsert(unique, {
-        onConflict: "source,source_id,feed",
-        count: "exact",
-      });
-    if (error) {
-      console.error("[ingest] upsert error", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    // Upsert par chunks de 500 pour éviter les payloads trop gros
+    const CHUNK = 500;
+    for (let i = 0; i < unique.length; i += CHUNK) {
+      const batch = unique.slice(i, i + CHUNK);
+      const { error, count } = await supabase
+        .from("jobs")
+        .upsert(batch, { onConflict: "source,source_id,feed", count: "exact" });
+      if (error) {
+        console.error("[ingest] upsert error", error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+      inserted += count || batch.length;
     }
-    inserted = count || unique.length;
   }
 
   return NextResponse.json({
