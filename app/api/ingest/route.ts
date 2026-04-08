@@ -61,10 +61,38 @@ export async function GET(req: Request) {
     }
   });
 
-  // Déduplication par (source, source_id, feed)
-  const map = new Map<string, NormalizedJob>();
-  for (const j of jobs) map.set(`${j.source}:${j.source_id}:${j.feed}`, j);
-  const unique = Array.from(map.values());
+  // 1) Déduplication intra-source par (source, source_id, feed)
+  const intraMap = new Map<string, NormalizedJob>();
+  for (const j of jobs) intraMap.set(`${j.source}:${j.source_id}:${j.feed}`, j);
+
+  // 2) Déduplication inter-sources par clé de contenu
+  //    (même titre + même entreprise + même feed = même offre)
+  //    On priorise Adzuna (généralement plus propre que Jooble).
+  const SOURCE_PRIORITY: Record<string, number> = { adzuna: 2, jooble: 1 };
+  const normKey = (s: string) =>
+    s
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+
+  const contentMap = new Map<string, NormalizedJob>();
+  for (const j of intraMap.values()) {
+    const titleKey = normKey(j.title);
+    const companyKey = normKey(j.company || "unknown");
+    const key = `${j.feed}|${titleKey}|${companyKey}`;
+    const existing = contentMap.get(key);
+    if (
+      !existing ||
+      (SOURCE_PRIORITY[j.source] || 0) > (SOURCE_PRIORITY[existing.source] || 0)
+    ) {
+      contentMap.set(key, j);
+    }
+  }
+  const unique = Array.from(contentMap.values());
+  const dedupedCrossSource =
+    intraMap.size - unique.length;
 
   let inserted = 0;
   if (unique.length > 0) {
@@ -87,6 +115,7 @@ export async function GET(req: Request) {
     duration_ms: Date.now() - started,
     fetched: unique.length,
     upserted: inserted,
+    deduped_cross_source: dedupedCrossSource,
     sources: counts,
   });
 }
