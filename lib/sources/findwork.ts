@@ -13,7 +13,7 @@ import {
 import type { Feed, NormalizedJob } from "../types";
 
 interface FindworkJob {
-  id: number;
+  id: number | string;
   role: string;
   company_name: string;
   company_num_employees?: string;
@@ -77,36 +77,66 @@ function build(j: FindworkJob, feed: Feed): NormalizedJob {
   };
 }
 
-export async function fetchFindworkQc(): Promise<NormalizedJob[]> {
-  const jobs = await fetchFindwork("cybersecurity");
-  const out: NormalizedJob[] = [];
-  for (const j of jobs) {
-    if (!isCybersecStrict(j.role)) continue;
-    if (!isQuebec(j.location || "")) continue;
-    out.push(build(j, "qc"));
+function safeBuild(j: FindworkJob, feed: Feed): NormalizedJob | null {
+  try {
+    return build(j, feed);
+  } catch (e) {
+    console.warn("[findwork] build error", e);
+    return null;
   }
-  return out;
+}
+
+export async function fetchFindworkQc(): Promise<NormalizedJob[]> {
+  try {
+    const jobs = await fetchFindwork("cybersecurity");
+    const out: NormalizedJob[] = [];
+    for (const j of jobs) {
+      if (!j?.role) continue;
+      if (!isCybersecStrict(j.role)) continue;
+      if (!isQuebec(j.location || "")) continue;
+      const b = safeBuild(j, "qc");
+      if (b) out.push(b);
+    }
+    return out;
+  } catch (e) {
+    console.warn("[findwork_qc] error", e);
+    return [];
+  }
 }
 
 export async function fetchFindworkRemoteNA(): Promise<NormalizedJob[]> {
-  const jobs = await fetchFindwork("cybersecurity", true);
-  const out: NormalizedJob[] = [];
-  for (const j of jobs) {
-    if (!isCybersecStrict(j.role)) continue;
-    if (isQuebec(j.location || "")) continue;
-    out.push(build(j, "remote_na"));
+  try {
+    const jobs = await fetchFindwork("cybersecurity", true);
+    const out: NormalizedJob[] = [];
+    for (const j of jobs) {
+      if (!j?.role) continue;
+      if (!isCybersecStrict(j.role)) continue;
+      if (isQuebec(j.location || "")) continue;
+      const b = safeBuild(j, "remote_na");
+      if (b) out.push(b);
+    }
+    return out;
+  } catch (e) {
+    console.warn("[findwork_remote_na] error", e);
+    return [];
   }
-  return out;
 }
 
 export async function fetchFindworkFreelance(): Promise<NormalizedJob[]> {
-  const jobs = await fetchFindwork("cybersecurity contract");
-  const out: NormalizedJob[] = [];
-  for (const j of jobs) {
-    if (!isCybersecStrict(j.role)) continue;
-    const hay = `${j.employment_type || ""} ${j.text || ""}`.toLowerCase();
-    if (!/contract|freelance|consultant|contractor/.test(hay)) continue;
-    out.push(build(j, "freelance"));
+  try {
+    const jobs = await fetchFindwork("cybersecurity contract");
+    const out: NormalizedJob[] = [];
+    for (const j of jobs) {
+      if (!j?.role) continue;
+      if (!isCybersecStrict(j.role)) continue;
+      const hay = `${j.employment_type || ""} ${j.text || ""}`.toLowerCase();
+      if (!/contract|freelance|consultant|contractor/.test(hay)) continue;
+      const b = safeBuild(j, "freelance");
+      if (b) out.push(b);
+    }
+    return out;
+  } catch (e) {
+    console.warn("[findwork_freelance] error", e);
+    return [];
   }
-  return out;
 }

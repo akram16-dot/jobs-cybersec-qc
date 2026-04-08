@@ -8,7 +8,6 @@ import {
   fetchAdzunaQc,
   fetchAdzunaRemoteNA,
 } from "@/lib/sources/adzuna";
-import { fetchEmploisQcQc } from "@/lib/sources/emploisquebec";
 import {
   fetchFindworkFreelance,
   fetchFindworkQc,
@@ -87,8 +86,6 @@ export async function GET(req: Request) {
     { label: "remoteok_freelance", run: fetchRemoteOkFreelance },
     // We Work Remotely
     { label: "wwr_remote_na", run: fetchWwrRemoteNA },
-    // Emplois Québec
-    { label: "emploisqc_qc", run: fetchEmploisQcQc },
     // Reed UK
     { label: "reed_freelance", run: fetchReedFreelance },
     // Findwork
