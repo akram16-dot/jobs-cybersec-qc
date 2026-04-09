@@ -4,10 +4,102 @@
 
 :root {
   color-scheme: dark;
+  --ink-900: #0a0e1a;
+  --ink-800: #121827;
+  --ink-700: #1a2233;
+  --accent: #10b981;
 }
 
 html,
 body {
-  background: #070b14;
+  background: var(--ink-900);
   color: #e6edf3;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "cv11", "ss01", "ss03";
+}
+
+/* Scrollbar raffinée */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.18);
+  background-clip: padding-box;
+}
+
+/* Sélection texte */
+::selection {
+  background: rgba(16, 185, 129, 0.3);
+  color: #ecfdf5;
+}
+
+/* Focus visible global */
+*:focus-visible {
+  outline: 2px solid rgba(16, 185, 129, 0.6);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Grille de fond subtile */
+.bg-grid {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 40%, transparent 90%);
+  -webkit-mask-image: radial-gradient(
+    ellipse 80% 60% at 50% 0%,
+    black 40%,
+    transparent 90%
+  );
+}
+
+/* Halo accent en haut de page */
+.bg-halo {
+  background:
+    radial-gradient(
+      ellipse 60% 50% at 50% -5%,
+      rgba(16, 185, 129, 0.22),
+      transparent 60%
+    ),
+    radial-gradient(
+      ellipse 80% 40% at 80% 10%,
+      rgba(59, 130, 246, 0.08),
+      transparent 60%
+    );
+}
+
+/* Line clamp fallback */
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Animation d'apparition pour les listes */
+.animate-in-soft {
+  animation: fadeInSoft 0.35s ease-out both;
+}
+@keyframes fadeInSoft {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
