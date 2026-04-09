@@ -3,12 +3,13 @@ import Link from "next/link";
 export default function NavHeader({
   current,
 }: {
-  current: "qc" | "teletravail" | "freelance";
+  current: "qc" | "teletravail" | "freelance" | "favoris";
 }) {
   const tabs = [
     { key: "qc", href: "/", label: "Québec" },
     { key: "teletravail", href: "/teletravail", label: "Télétravail CA/US" },
     { key: "freelance", href: "/freelance", label: "Freelance mondial" },
+    { key: "favoris", href: "/favoris", label: "★ Favoris" },
   ] as const;
 
   return (

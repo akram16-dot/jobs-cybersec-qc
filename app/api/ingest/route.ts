@@ -30,6 +30,7 @@ import {
   fetchRemotiveRemoteNA,
 } from "@/lib/sources/remotive";
 import { fetchWwrRemoteNA } from "@/lib/sources/weworkremotely";
+import { detectSkills } from "@/lib/skills";
 import { supabaseAdmin } from "@/lib/supabase";
 import type { NormalizedJob } from "@/lib/types";
 
@@ -137,6 +138,11 @@ export async function GET(req: Request) {
   }
   const unique = Array.from(contentMap.values());
   const dedupedCrossSource = intraMap.size - unique.length;
+
+  // 3) Enrichissement : détection automatique des compétences/tags
+  for (const j of unique) {
+    j.skills = detectSkills(j.title, j.description || "");
+  }
 
   let inserted = 0;
   if (unique.length > 0) {

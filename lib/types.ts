@@ -24,9 +24,12 @@ export interface NormalizedJob {
   description: string | null;
   url: string;
   posted_at: string | null; // ISO
+  /** Rempli automatiquement dans la route d'ingestion (detectSkills). */
+  skills?: string[];
 }
 
 export interface JobRow extends NormalizedJob {
   id: string;
   fetched_at: string;
+  skills: string[];
 }
