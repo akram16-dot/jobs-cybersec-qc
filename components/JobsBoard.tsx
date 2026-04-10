@@ -73,7 +73,8 @@ export default function JobsBoard({
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 
-  const { favoriteIds, toggle: toggleFav } = useFavorites();
+  const { favoriteIds, appliedIds, toggle: toggleFav, toggleApplied } =
+    useFavorites();
 
   const cities = useMemo(() => {
     const set = new Set<string>();
@@ -282,6 +283,7 @@ export default function JobsBoard({
       <ul className="grid gap-3">
         {pageJobs.map((j, idx) => {
           const fav = favoriteIds.has(j.id);
+          const applied = appliedIds.has(j.id);
           const fresh = isNew(j.posted_at);
           return (
             <li
@@ -313,6 +315,11 @@ export default function JobsBoard({
                             Nouveau
                           </span>
                         )}
+                        {applied && (
+                          <span className="px-1.5 py-0.5 text-[10px] uppercase tracking-wide font-semibold rounded bg-blue-500/15 text-blue-300 border border-blue-400/30">
+                            Postulé
+                          </span>
+                        )}
                       </div>
                       <div className="mt-1 text-sm text-white/55 flex items-center gap-1.5 flex-wrap">
                         <span className="text-white/75">
@@ -339,31 +346,66 @@ export default function JobsBoard({
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => toggleFav(j.id)}
-                      aria-label={
-                        fav ? "Retirer des favoris" : "Ajouter aux favoris"
-                      }
-                      title={fav ? "Retirer des favoris" : "Ajouter aux favoris"}
-                      className={`flex-shrink-0 h-9 w-9 rounded-lg border transition-all flex items-center justify-center ${
-                        fav
-                          ? "bg-accent/15 border-accent/40 text-accent-300"
-                          : "bg-white/[0.02] border-white/[0.06] text-white/30 hover:text-white/80 hover:border-white/15"
-                      }`}
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill={fav ? "currentColor" : "none"}
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="h-4 w-4"
+                    <div className="flex-shrink-0 flex items-center gap-1.5">
+                      {/* Bouton favori */}
+                      <button
+                        onClick={() => toggleFav(j.id)}
+                        aria-label={
+                          fav ? "Retirer des favoris" : "Ajouter aux favoris"
+                        }
+                        title={fav ? "Retirer des favoris" : "Ajouter aux favoris"}
+                        className={`h-9 w-9 rounded-lg border transition-all flex items-center justify-center ${
+                          fav
+                            ? "bg-accent/15 border-accent/40 text-accent-300"
+                            : "bg-white/[0.02] border-white/[0.06] text-white/30 hover:text-white/80 hover:border-white/15"
+                        }`}
                       >
-                        <path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-                      </svg>
-                    </button>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill={fav ? "currentColor" : "none"}
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="h-4 w-4"
+                        >
+                          <path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                        </svg>
+                      </button>
+                      {/* Bouton "Déjà postulé" */}
+                      <button
+                        onClick={() => toggleApplied(j.id)}
+                        aria-label={
+                          applied
+                            ? "Retirer de « Déjà postulé »"
+                            : "Marquer « Déjà postulé »"
+                        }
+                        title={
+                          applied
+                            ? "Retirer de « Déjà postulé »"
+                            : "Marquer « Déjà postulé »"
+                        }
+                        className={`h-9 w-9 rounded-lg border transition-all flex items-center justify-center ${
+                          applied
+                            ? "bg-blue-500/15 border-blue-400/40 text-blue-300"
+                            : "bg-white/[0.02] border-white/[0.06] text-white/30 hover:text-white/80 hover:border-white/15"
+                        }`}
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth={applied ? "3" : "2"}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="h-4 w-4"
+                        >
+                          <path d="M5 13l4 4L19 7" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
 
                   {/* Description */}

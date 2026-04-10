@@ -19,6 +19,7 @@ function getOrCreateClientId(): string {
 export function useFavorites() {
   const [clientId, setClientId] = useState("");
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -28,10 +29,14 @@ export function useFavorites() {
     fetch(`/api/favorites?client_id=${encodeURIComponent(id)}`)
       .then((r) => r.json())
       .then((data) => {
-        const ids = new Set<string>(
+        const favIds = new Set<string>(
           ((data?.jobs as { id: string }[]) || []).map((j) => j.id)
         );
-        setFavoriteIds(ids);
+        const appIds = new Set<string>(
+          (data?.appliedIds as string[]) || []
+        );
+        setFavoriteIds(favIds);
+        setAppliedIds(appIds);
       })
       .catch(() => {})
       .finally(() => setLoaded(true));
@@ -41,13 +46,20 @@ export function useFavorites() {
     async (jobId: string) => {
       if (!clientId) return;
       const isFav = favoriteIds.has(jobId);
-      // Optimistic update
       setFavoriteIds((prev) => {
         const next = new Set(prev);
         if (isFav) next.delete(jobId);
         else next.add(jobId);
         return next;
       });
+      // Si on retire des favoris, retirer aussi de "postulé"
+      if (isFav) {
+        setAppliedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(jobId);
+          return next;
+        });
+      }
       try {
         await fetch("/api/favorites", {
           method: isFav ? "DELETE" : "POST",
@@ -55,7 +67,6 @@ export function useFavorites() {
           body: JSON.stringify({ client_id: clientId, job_id: jobId }),
         });
       } catch {
-        // Rollback en cas d'erreur
         setFavoriteIds((prev) => {
           const next = new Set(prev);
           if (isFav) next.add(jobId);
@@ -67,5 +78,50 @@ export function useFavorites() {
     [clientId, favoriteIds]
   );
 
-  return { clientId, favoriteIds, toggle, loaded };
+  const toggleApplied = useCallback(
+    async (jobId: string) => {
+      if (!clientId) return;
+      const isApplied = appliedIds.has(jobId);
+      const newApplied = !isApplied;
+
+      // Optimistic update : toggle applied
+      setAppliedIds((prev) => {
+        const next = new Set(prev);
+        if (isApplied) next.delete(jobId);
+        else next.add(jobId);
+        return next;
+      });
+      // Si on marque "postulé", ajouter automatiquement aux favoris
+      if (newApplied && !favoriteIds.has(jobId)) {
+        setFavoriteIds((prev) => {
+          const next = new Set(prev);
+          next.add(jobId);
+          return next;
+        });
+      }
+
+      try {
+        await fetch("/api/favorites", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            client_id: clientId,
+            job_id: jobId,
+            applied: newApplied,
+          }),
+        });
+      } catch {
+        // Rollback
+        setAppliedIds((prev) => {
+          const next = new Set(prev);
+          if (isApplied) next.add(jobId);
+          else next.delete(jobId);
+          return next;
+        });
+      }
+    },
+    [clientId, appliedIds, favoriteIds]
+  );
+
+  return { clientId, favoriteIds, appliedIds, toggle, toggleApplied, loaded };
 }
