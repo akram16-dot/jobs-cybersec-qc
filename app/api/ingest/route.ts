@@ -143,9 +143,11 @@ export async function GET(req: Request) {
   const unique = Array.from(contentMap.values());
   const dedupedCrossSource = intraMap.size - unique.length;
 
-  // 3) Enrichissement : détection automatique des compétences/tags
+  // 3) Enrichissement : skills + forcer fetched_at pour que l'upsert le mette à jour
+  const now = new Date().toISOString();
   for (const j of unique) {
     j.skills = detectSkills(j.title, j.description || "");
+    (j as Record<string, unknown>).fetched_at = now;
   }
 
   let inserted = 0;
