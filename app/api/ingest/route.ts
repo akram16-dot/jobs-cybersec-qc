@@ -42,7 +42,11 @@ function authorized(req: Request): boolean {
   const secret = process.env.INGEST_SECRET;
   if (!secret) return false;
   const header = req.headers.get("authorization") || "";
-  return header === `Bearer ${secret}`;
+  // Accepte : appel manuel (Bearer INGEST_SECRET) OU cron Vercel (CRON_SECRET)
+  if (header === `Bearer ${secret}`) return true;
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret && header === `Bearer ${cronSecret}`) return true;
+  return false;
 }
 
 // Priorités pour la déduplication inter-sources :
